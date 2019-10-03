@@ -423,3 +423,4 @@ Mysqldump属于逻辑备份、热备份。规模较小、业务不繁忙的数�
 #### Xtrabackup
 
 Xtrabackup属于物理备份、热备份。
+
