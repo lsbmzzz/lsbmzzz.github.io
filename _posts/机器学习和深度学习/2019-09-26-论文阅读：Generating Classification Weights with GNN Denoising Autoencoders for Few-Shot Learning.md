@@ -9,6 +9,7 @@ catalog: true
 mathjax: true
 tags:
     - Few-shot
+    - 深度学习
 
 ---
 

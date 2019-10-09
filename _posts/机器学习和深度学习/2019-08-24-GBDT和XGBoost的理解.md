@@ -8,6 +8,7 @@ header-img: img/blog_bg_1.jpg
 catalog: true
 mathjax: true
 tags:
+    - 机器学习
     - GBDT
     - XGBoost
     - 信息熵和信息增益
