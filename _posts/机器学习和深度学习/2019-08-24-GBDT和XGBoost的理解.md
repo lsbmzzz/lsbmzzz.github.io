@@ -9,9 +9,6 @@ catalog: true
 mathjax: true
 tags:
     - 机器学习
-    - GBDT
-    - XGBoost
-    - 信息熵和信息增益
 
 ---
 

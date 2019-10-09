@@ -9,7 +9,6 @@ catalog: true
 mathjax: true
 tags:
     - 小样本学习
-    - Few-shot Learning
     - 机器学习
 
 ---

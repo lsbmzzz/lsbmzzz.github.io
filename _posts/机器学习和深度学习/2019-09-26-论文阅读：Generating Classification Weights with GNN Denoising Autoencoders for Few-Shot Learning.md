@@ -8,7 +8,7 @@ header-img: img/blog_bg_1.jpg
 catalog: true
 mathjax: true
 tags:
-    - Few-shot
+    - 小样本学习
     - 深度学习
 
 ---
