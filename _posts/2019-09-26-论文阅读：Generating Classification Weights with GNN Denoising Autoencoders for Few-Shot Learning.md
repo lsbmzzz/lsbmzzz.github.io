@@ -2,7 +2,7 @@
 layout:     post
 title:      论文阅读：Generating Classification Weights with GNN Denoising Autoencoders for Few-Shot Learning
 subtitle:   论文阅读：Generating Classification Weights with GNN Denoising Autoencoders for Few-Shot Learning
-date:       2019-09-04
+date:       2019-09-26
 author:     正版慕言
 header-img: img/blog_bg_1.jpg
 catalog: true
