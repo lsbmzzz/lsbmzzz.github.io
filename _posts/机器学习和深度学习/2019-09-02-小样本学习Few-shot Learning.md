@@ -8,7 +8,6 @@ header-img: img/blog_bg_1.jpg
 catalog: true
 mathjax: true
 tags:
-    - 小样本学习
     - 机器学习
 
 ---
