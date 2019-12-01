@@ -25,7 +25,7 @@ public interface Statement extends Wrapper, AutoCloseable
 
 - 获取Statement对象：Statement createStatement()
 
-![Statemet接口](/img/Java开发/Statemet接口.png)
+![Statemet接口](/img/Java基础/Statemet接口.png)
 
 获取了Statement接口对象之后，就可以使用SQL进行处理了。Statement中提供了两个方法的支持：
 |方法|功能|
@@ -56,7 +56,7 @@ PreparedStatement是Statement的一个子接口，用于解决Statement存在的
 public interface PreparedStatement extends Statement
 ```
 
-![PreparedStatemet接口](/img/Java开发/PreparedStatemet接口.png)
+![PreparedStatemet接口](/img/Java基础/PreparedStatemet接口.png)
 
 获得PreparedStatement接口的实例，依然需要通过Connection接口来实现创建方法：
 - PreparedStatement prepareStatement(String sql)
@@ -70,4 +70,4 @@ public interface PreparedStatement extends Statement
 
 在JDBC中不管使用的是PreparedStatement设置的日期时间还是使用ResultSet获取的日期时间实际上都是java.util.Date的子类，也就是说是如下的对应关系。
 
-![PreparedStatemet与Date](/img/Java开发/PreparedStatemet与Date.png)
+![PreparedStatemet与Date](/img/Java基础/PreparedStatemet与Date.png)
