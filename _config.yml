@@ -65,7 +65,7 @@ gitalk:
   enable: true    #是否开启Gitalk评论
   clientID: d152702fe7aea697d25a                            #生成的clientID
   clientSecret: 79393dd7495fe5ebd3ad95696bd291230a4a89af    #生成的clientSecret
-  repo: lsbmzzz.github.io    #仓库名称
+  repo: https://github.com/lsbmzzz/lsbmzzz.github.io    #仓库名称
   owner: lsbmzzz    #github用户名
   admin: lsbmzzz
   distractionFreeMode: true #是否启用类似FB的阴影遮罩
@@ -79,7 +79,7 @@ ba_track_id: a825493fddf75114cd4e6fd13a8bc42e
 
 # Google Analytics
 ga_track_id: 'UA-143258152-1'            # Format: UA-xxxxxx-xx
-ga_domain: lsbmzzz.github.io               # 默认的是 auto, 这里我是自定义了的域名，你如果没有自己的域名，需要改成auto
+ga_domain: www.lsbmzzz.com               # 默认的是 auto, 这里我是自定义了的域名，你如果没有自己的域名，需要改成auto
 
 
 
@@ -87,7 +87,7 @@ ga_domain: lsbmzzz.github.io               # 默认的是 auto, 这里我是自�
 
 # Featured Tags
 featured-tags: true                     # 是否使用首页标签
-featured-condition-size: 1              # 相同标签数量大于这个数，才会出现在首页
+featured-condition-size: 5              # 相同标签数量大于这个数，才会出现在首页
 
 
 
