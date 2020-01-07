@@ -91,13 +91,18 @@
                 </ul>
                 <p class="copyright text-muted">
                     Copyright &copy; {{ site.title }} {{ site.time | date: '%Y' }}.
-                    <a  href="http://beian.miit.gov.cn" target="_blank">京ICP备20000711号</a>
+                    <a href="http://beian.miit.gov.cn" target="_blank">京ICP备20000711号</a>
                     <br>
                     Theme on <a href="{{ site.github_repo }}">GitHub</a> |
                     <iframe
                         style="margin-left: 2px; margin-bottom:-5px;"
                         frameborder="0" scrolling="0" width="100px" height="20px"
                         src="https://ghbtns.com/github-btn.html?user={{ site.github_username }}&repo={{ site.github_username }}.github.io&type=star&count=true" >
+                    </iframe>
+                    <iframe
+                        style="margin-left: 2px; margin-bottom:-5px;"
+                        frameborder="0" scrolling="0" width="100px" height="20px"
+                        src="https://ghbtns.com/github-btn.html?user={{ site.github_username }}&repo={{ site.github_username }}.github.io&type=fork&count=true" >
                     </iframe>
                 </p>
             </div>
