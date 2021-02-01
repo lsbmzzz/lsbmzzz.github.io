@@ -4,8 +4,7 @@ title:      SpringBoot底层注解
 subtitle:   SpringBoot底层注解
 date:       2021-02-01
 author:     张三
-header-img: img/spring.png
-title-color: #000000
+header-img: img/spring.jpg
 catalog: true
 mathjax: true
 tags:
