@@ -2,7 +2,7 @@
 layout:     post
 title:      SpringBoot web笔记
 subtitle:   SpringBoot web笔记
-date:       2021-02-01
+date:       2021-02-03
 author:     张三
 header-img: img/spring.jpg
 catalog: true
@@ -199,7 +199,9 @@ spring:
     + 兼容以下请求；PUT.DELETE.PATCH
     + 原生request（post），包装模式requesWrapper重写了getMethod方法，返回的是传入的值。
     + 过滤器链放行的时候用wrapper。以后的方法调用getMethod是调用requesWrapper的。
+
 可以直接使用GetMapping、PostMapping、PutMapping、DeleteMapping
+
 ```java
 @RestController
 public class HelloController {
