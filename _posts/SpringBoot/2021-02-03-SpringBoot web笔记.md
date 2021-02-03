@@ -204,6 +204,7 @@ spring:
     + 原生request（post），包装模式requesWrapper重写了getMethod方法，返回的是传入的值。
     + 过滤器链放行的时候用wrapper。以后的方法调用getMethod是调用requesWrapper的。
 可以直接使用GetMapping、PostMapping、PutMapping、DeleteMapping
+
 ```java
 @RestController
 public class HelloController {
