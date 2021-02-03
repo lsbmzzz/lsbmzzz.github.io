@@ -42,13 +42,13 @@ spring:
 
 **原理：请求到达后，首先检查Controller能不能处理，如果不能，就交给静态资源处理器。如果静态资源也无法处理，返回404页面。**
 
-## 欢迎页
+### 欢迎页
 
 将名为index.html的文件放在静态资源路径下，访问根路径可自动跳转。
 
 可以配置静态资源路径，但 **不能配置静态资源访问前缀**。
 
-## 标签图标
+### 标签图标
 
 将favicon.ico放在静态资源目录下。
 
@@ -147,7 +147,8 @@ spring:
     }
 ```
 
-### 欢迎页的配置同理，在WebMvcAutoConfigurationAdapter下有一个welcomePageHandlerMapping方法
+**欢迎页的配置同理，在WebMvcAutoConfigurationAdapter下有一个welcomePageHandlerMapping方法**
+
 ```java
         @Bean
         public WelcomePageHandlerMapping welcomePageHandlerMapping(ApplicationContext applicationContext,
@@ -160,7 +161,9 @@ spring:
             return welcomePageHandlerMapping;
         }
 ```
+
 其中 new WelcomePageHandlerMapping:
+
 ```java
 WelcomePageHandlerMapping(TemplateAvailabilityProviders templateAvailabilityProviders,
             ApplicationContext applicationContext, Optional<Resource> welcomePage, String staticPathPattern) {
@@ -175,11 +178,12 @@ WelcomePageHandlerMapping(TemplateAvailabilityProviders templateAvailabilityProv
     }
 ```
 
-## 请求映射
+# 请求处理
 
 在Controller上使用@RequestMapping注解
 
-Rest风格原
+## Rest风格的请求映射
+
 关键Filter：HiddenHttpMethodFilter
 
 - 表单method=post，隐藏域 _method=put
@@ -204,7 +208,7 @@ spring:
 @RestController
 public class HelloController {
 
-    @RequestMapping("/bug.jpg")
+    @RequestMapping("/zhangsan.jpg")
     public String hello(){
         //request
         return "aaaa";
@@ -234,3 +238,188 @@ public class HelloController {
         return "DELETE-张三";
     }
 ```
+
+## 请求映射的原理
+
+![](/img/SpringBoot/Spring请求调用原理.png)
+
+- HttpServlet 中的 doGet 在 FrameWorkServlet 中 调用本类的 processRequest 方法
+- processRequest 调用本类的 doService 方法
+- doService 在子类 DispatcherServlet 中进行了实现
+- doService 调用 DispatcherServlet 的 doDispatch 方法
+
+doDispatch 方法：
+
+```java
+    /**
+     * Process the actual dispatching to the handler.
+     * <p>The handler will be obtained by applying the servlet's HandlerMappings in order.
+     * The HandlerAdapter will be obtained by querying the servlet's installed HandlerAdapters
+     * to find the first that supports the handler class.
+     * <p>All HTTP methods are handled by this method. It's up to HandlerAdapters or handlers
+     * themselves to decide which methods are acceptable.
+     * @param request current HTTP request
+     * @param response current HTTP response
+     * @throws Exception in case of any kind of processing failure
+     */
+    protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HttpServletRequest processedRequest = request;
+        HandlerExecutionChain mappedHandler = null;
+        boolean multipartRequestParsed = false;
+
+        WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+
+        try {
+            ModelAndView mv = null;
+            Exception dispatchException = null;
+
+            try {
+                processedRequest = checkMultipart(request);
+                multipartRequestParsed = (processedRequest != request);
+
+                // 决定哪一个handler可以处理当前请求
+                mappedHandler = getHandler(processedRequest);
+                if (mappedHandler == null) {
+                    noHandlerFound(processedRequest, response);
+                    return;
+                }
+
+                // Determine handler adapter for the current request.
+                HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
+
+                // Process last-modified header, if supported by the handler.
+                String method = request.getMethod();
+                boolean isGet = "GET".equals(method);
+                if (isGet || "HEAD".equals(method)) {
+                    long lastModified = ha.getLastModified(request, mappedHandler.getHandler());
+                    if (new ServletWebRequest(request, response).checkNotModified(lastModified) && isGet) {
+                        return;
+                    }
+                }
+
+                if (!mappedHandler.applyPreHandle(processedRequest, response)) {
+                    return;
+                }
+
+                // Actually invoke the handler.
+                mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
+
+                if (asyncManager.isConcurrentHandlingStarted()) {
+                    return;
+                }
+
+                applyDefaultViewName(processedRequest, mv);
+                mappedHandler.applyPostHandle(processedRequest, response, mv);
+            }
+            catch (Exception ex) {
+                dispatchException = ex;
+            }
+            catch (Throwable err) {
+                // As of 4.3, we're processing Errors thrown from handler methods as well,
+                // making them available for @ExceptionHandler methods and other scenarios.
+                dispatchException = new NestedServletException("Handler dispatch failed", err);
+            }
+            processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
+        }
+        catch (Exception ex) {
+            triggerAfterCompletion(processedRequest, response, mappedHandler, ex);
+        }
+        catch (Throwable err) {
+            triggerAfterCompletion(processedRequest, response, mappedHandler,
+                    new NestedServletException("Handler processing failed", err));
+        }
+        finally {
+            if (asyncManager.isConcurrentHandlingStarted()) {
+                // Instead of postHandle and afterCompletion
+                if (mappedHandler != null) {
+                    mappedHandler.applyAfterConcurrentHandlingStarted(processedRequest, response);
+                }
+            }
+            else {
+                // Clean up any resources used by a multipart request.
+                if (multipartRequestParsed) {
+                    cleanupMultipart(processedRequest);
+                }
+            }
+        }
+    }
+```
+
+handlerMapping 中有
+
+- RequestMappingHandlerMapping : 保存了所有的 handler 映射
+- WelcomePageHandlerMapping : 配置了欢迎页 index.html
+- BeanNameUrlHandlerMapping
+- RouterFunctionMapping
+- SimpleUrlHandlerMapping
+
+```java
+/** List of HandlerMappings used by this servlet. */
+    @Nullable
+    private List<HandlerMapping> handlerMappings;
+```
+
+请求到达后，会遍历所有HandlerMapping查找是否有其请求信息
+
+## 请求处理方式
+
+### 注解
+
+- @PathVariable（路径变量）
+- @RequestHeader（获取请求头）
+- @RequestParam（获取请求参数）
+- @CookieValue（获取cookie值）
+
+```java
+    //  car/2/owner/zhangsan
+    @GetMapping("/car/{id}/owner/{username}")
+    public Map<String,Object> getCar(@PathVariable("id") Integer id,
+                                     @PathVariable("username") String name,
+                                     @PathVariable Map<String,String> pv, // 所有路径变量
+                                     @RequestHeader("User-Agent") String userAgent,
+                                     @RequestHeader Map<String,String> header, // 所有请求头
+                                     @RequestParam("age") Integer age,
+                                     @RequestParam("inters") List<String> inters,
+                                     @RequestParam Map<String,String> params, // 所有请求参数
+                                     @CookieValue("_ga") String _ga,
+                                     @CookieValue("_ga") Cookie cookie){ // 完整cookie
+        // map.pub()...
+        Map<String,Object> map = new HashMap<>();
+        return map;
+```
+
+- @RequestBody（获取请求体[POST]）
+
+```java
+    @PostMapping("/save")
+    public Map postMethod(@RequestBody String content){
+        Map<String,Object> map = new HashMap<>();
+        map.put("content",content);
+        return map;
+    }
+```
+
+- @RequestAttribute (获取request请求域属性中的值)
+
+```java
+    request.setAttribute("msg", "message");
+    request.getAttribute("msg");
+```
+
+- @MatrixVariable (矩阵变量)
+    + 多个变量之间使用;分隔
+```java
+    /cars/sell;low=34;brand=byd,audi,yd
+```
+    + 一个变量的多个值使用,分隔，或是使用重复变量名
+```java
+    color=red,green,blue
+
+    color=red;color=green;color=blue
+```
+    + 当不同路径下的变量名相同时，使用pathVar，指定获取哪个路径下的值
+    + SpringBoot默认禁用矩阵变量，需要手动开启
+        * 手动开启：原理。对于路径的处理。UrlPathHelper进行解析。removeSemicolonContent（移除分号内容）支持矩阵变量的
+    + 矩阵变量必须有url路径变量才能被解析
+
+### Servlet API
