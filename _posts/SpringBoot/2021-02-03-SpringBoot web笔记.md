@@ -423,4 +423,277 @@ handlerMapping 中有
         * 手动开启：原理。对于路径的处理。UrlPathHelper进行解析。removeSemicolonContent（移除分号内容）支持矩阵变量的
     + 矩阵变量必须有url路径变量才能被解析
 
-### Servlet API
+#### 注解方式的原理
+
+- DispatcherServlet开始，进入doDispatch方法
+- 在 HandlerMapping 中找到能处理请求的Handler，并为其找到一个适配器 HandlerAdapter
+- RequestMappingHandlerAdapter中的handleInternal调用invokeHandlerMethod执行目标方法并确定方法参数的值
+
+![HandlerAdapter.png](/img/SpringBoot/HandlerAdapter.png)
+
+- 4种 Adapter 前两种用的最多
+    + 支持方法上标注@RequestMapping注解
+    + 支持函数式编程
+
+**doDispatch方法：** 找到能处理请求的Handler，并为其找到一个适配器 HandlerAdapter
+
+```java
+    /**
+     * Process the actual dispatching to the handler.
+     * <p>The handler will be obtained by applying the servlet's HandlerMappings in order.
+     * The HandlerAdapter will be obtained by querying the servlet's installed HandlerAdapters
+     * to find the first that supports the handler class.
+     * <p>All HTTP methods are handled by this method. It's up to HandlerAdapters or handlers
+     * themselves to decide which methods are acceptable.
+     * @param request current HTTP request
+     * @param response current HTTP response
+     * @throws Exception in case of any kind of processing failure
+     */
+    protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HttpServletRequest processedRequest = request;
+        HandlerExecutionChain mappedHandler = null;
+        boolean multipartRequestParsed = false;
+
+        WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+
+        try {
+            ModelAndView mv = null;
+            Exception dispatchException = null;
+
+            try {
+                processedRequest = checkMultipart(request);
+                multipartRequestParsed = (processedRequest != request);
+
+                // Determine handler for the current request.
+                mappedHandler = getHandler(processedRequest);
+                if (mappedHandler == null) {
+                    noHandlerFound(processedRequest, response);
+                    return;
+                }
+
+                // Determine handler adapter for the current request.
+                // 重点
+                HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
+
+                // Process last-modified header, if supported by the handler.
+                String method = request.getMethod();
+                boolean isGet = "GET".equals(method);
+                if (isGet || "HEAD".equals(method)) {
+                    long lastModified = ha.getLastModified(request, mappedHandler.getHandler());
+                    if (new ServletWebRequest(request, response).checkNotModified(lastModified) && isGet) {
+                        return;
+                    }
+                }
+
+                if (!mappedHandler.applyPreHandle(processedRequest, response)) {
+                    return;
+                }
+
+                // Actually invoke the handler.
+                // 重点 执行目标方法
+                mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
+
+                if (asyncManager.isConcurrentHandlingStarted()) {
+                    return;
+                }
+
+                applyDefaultViewName(processedRequest, mv);
+                mappedHandler.applyPostHandle(processedRequest, response, mv);
+            }
+            catch (Exception ex) {
+                dispatchException = ex;
+            }
+            catch (Throwable err) {
+                // As of 4.3, we're processing Errors thrown from handler methods as well,
+                // making them available for @ExceptionHandler methods and other scenarios.
+                dispatchException = new NestedServletException("Handler dispatch failed", err);
+            }
+            processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
+        }
+        catch (Exception ex) {
+            triggerAfterCompletion(processedRequest, response, mappedHandler, ex);
+        }
+        catch (Throwable err) {
+            triggerAfterCompletion(processedRequest, response, mappedHandler,
+                    new NestedServletException("Handler processing failed", err));
+        }
+        finally {
+            if (asyncManager.isConcurrentHandlingStarted()) {
+                // Instead of postHandle and afterCompletion
+                if (mappedHandler != null) {
+                    mappedHandler.applyAfterConcurrentHandlingStarted(processedRequest, response);
+                }
+            }
+            else {
+                // Clean up any resources used by a multipart request.
+                if (multipartRequestParsed) {
+                    cleanupMultipart(processedRequest);
+                }
+            }
+        }
+    }
+```
+
+**handleInternal：** 执行目标方法
+
+```java
+    protected ModelAndView handleInternal(HttpServletRequest request,
+            HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
+
+        ModelAndView mav;
+        checkRequest(request);
+
+        // Execute invokeHandlerMethod in synchronized block if required.
+        if (this.synchronizeOnSession) {
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                Object mutex = WebUtils.getSessionMutex(session);
+                synchronized (mutex) {
+                    mav = invokeHandlerMethod(request, response, handlerMethod);
+                }
+            }
+            else {
+                // No HttpSession available -> no mutex necessary
+                mav = invokeHandlerMethod(request, response, handlerMethod);
+            }
+        }
+        else {
+            // No synchronization on session demanded at all...
+            // 执行目标方法
+            mav = invokeHandlerMethod(request, response, handlerMethod);
+        }
+
+        if (!response.containsHeader(HEADER_CACHE_CONTROL)) {
+            if (getSessionAttributesHandler(handlerMethod).hasSessionAttributes()) {
+                applyCacheSeconds(response, this.cacheSecondsForSessionAttributeHandlers);
+            }
+            else {
+                prepareResponse(response);
+            }
+        }
+
+        return mav;
+    }
+```
+
+**invokeHandlerMethod：** 执行目标方法
+
+```java
+    /**
+     * Invoke the {@link RequestMapping} handler method preparing a {@link ModelAndView}
+     * if view resolution is required.
+     * @since 4.2
+     * @see #createInvocableHandlerMethod(HandlerMethod)
+     */
+    @Nullable
+    protected ModelAndView invokeHandlerMethod(HttpServletRequest request,
+            HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
+
+        ServletWebRequest webRequest = new ServletWebRequest(request, response);
+        try {
+            WebDataBinderFactory binderFactory = getDataBinderFactory(handlerMethod);
+            ModelFactory modelFactory = getModelFactory(handlerMethod, binderFactory);
+
+            ServletInvocableHandlerMethod invocableMethod = createInvocableHandlerMethod(handlerMethod);
+            if (this.argumentResolvers != null) {
+                invocableMethod.setHandlerMethodArgumentResolvers(this.argumentResolvers);
+            }
+            if (this.returnValueHandlers != null) {
+                invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
+            }
+            invocableMethod.setDataBinderFactory(binderFactory);
+            invocableMethod.setParameterNameDiscoverer(this.parameterNameDiscoverer);
+
+            ModelAndViewContainer mavContainer = new ModelAndViewContainer();
+            mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
+            modelFactory.initModel(webRequest, mavContainer, invocableMethod);
+            mavContainer.setIgnoreDefaultModelOnRedirect(this.ignoreDefaultModelOnRedirect);
+
+            AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);
+            asyncWebRequest.setTimeout(this.asyncRequestTimeout);
+
+            WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+            asyncManager.setTaskExecutor(this.taskExecutor);
+            asyncManager.setAsyncWebRequest(asyncWebRequest);
+            asyncManager.registerCallableInterceptors(this.callableInterceptors);
+            asyncManager.registerDeferredResultInterceptors(this.deferredResultInterceptors);
+
+            if (asyncManager.hasConcurrentResult()) {
+                Object result = asyncManager.getConcurrentResult();
+                mavContainer = (ModelAndViewContainer) asyncManager.getConcurrentResultContext()[0];
+                asyncManager.clearConcurrentResult();
+                LogFormatUtils.traceDebug(logger, traceOn -> {
+                    String formatted = LogFormatUtils.formatValue(result, !traceOn);
+                    return "Resume with async result [" + formatted + "]";
+                });
+                invocableMethod = invocableMethod.wrapConcurrentResult(result);
+            }
+            // 重点 
+            invocableMethod.invokeAndHandle(webRequest, mavContainer);
+            if (asyncManager.isConcurrentHandlingStarted()) {
+                return null;
+            }
+
+            return getModelAndView(mavContainer, modelFactory, webRequest);
+        }
+        finally {
+            webRequest.requestCompleted();
+        }
+    }
+```
+
+**invokeAndHandle**
+
+- 通过 invokeForRequest 执行目标方法
+
+```java
+    /**
+     * Invoke the method and handle the return value through one of the
+     * configured {@link HandlerMethodReturnValueHandler HandlerMethodReturnValueHandlers}.
+     * @param webRequest the current request
+     * @param mavContainer the ModelAndViewContainer for this request
+     * @param providedArgs "given" arguments matched by type (not resolved)
+     */
+    public void invokeAndHandle(ServletWebRequest webRequest, ModelAndViewContainer mavContainer,
+            Object... providedArgs) throws Exception {
+
+        Object returnValue = invokeForRequest(webRequest, mavContainer, providedArgs); // 执行目标方法
+        setResponseStatus(webRequest);
+
+        if (returnValue == null) {
+            if (isRequestNotModified(webRequest) || getResponseStatus() != null || mavContainer.isRequestHandled()) {
+                disableContentCachingIfNecessary(webRequest);
+                mavContainer.setRequestHandled(true);
+                return;
+            }
+        }
+        else if (StringUtils.hasText(getResponseStatusReason())) {
+            mavContainer.setRequestHandled(true);
+            return;
+        }
+
+        mavContainer.setRequestHandled(false);
+        Assert.state(this.returnValueHandlers != null, "No return value handlers");
+        try {
+            this.returnValueHandlers.handleReturnValue(
+                    returnValue, getReturnValueType(returnValue), mavContainer, webRequest);
+        }
+        catch (Exception ex) {
+            if (logger.isTraceEnabled()) {
+                logger.trace(formatErrorForReturnValue(returnValue), ex);
+            }
+            throw ex;
+        }
+    }
+```
+
+##### 参数解析器
+确定将要执行的目标方法的每一个参数的值是什么;
+SpringMVC目标方法能写多少种参数类型。取决于参数解析器。
+
+![26个参数解析器](/img/SpringBoot/HandlerMethodArgumentResolver.png)
+
+##### 返回值处理器
+可以处理哪些类型的返回值
+
+![15个返回值处理器](/img/SpringBoot/HandlerMethodReturnValueHandler.png)
