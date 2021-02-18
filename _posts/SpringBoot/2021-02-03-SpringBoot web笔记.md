@@ -697,3 +697,158 @@ SpringMVC目标方法能写多少种参数类型。取决于参数解析器。
 可以处理哪些类型的返回值
 
 ![15个返回值处理器](/img/SpringBoot/HandlerMethodReturnValueHandler.png)
+
+### Servlet API
+
+ServletRequestMethodArgumentResolver 下的 supportsParameter 方法中出现的均支持
+
+```java
+    public boolean supportsParameter(MethodParameter parameter) {
+        Class<?> paramType = parameter.getParameterType();
+        return (WebRequest.class.isAssignableFrom(paramType) ||
+                ServletRequest.class.isAssignableFrom(paramType) ||
+                MultipartRequest.class.isAssignableFrom(paramType) ||
+                HttpSession.class.isAssignableFrom(paramType) ||
+                (pushBuilder != null && pushBuilder.isAssignableFrom(paramType)) ||
+                (Principal.class.isAssignableFrom(paramType) && !parameter.hasParameterAnnotations()) ||
+                InputStream.class.isAssignableFrom(paramType) ||
+                Reader.class.isAssignableFrom(paramType) ||
+                HttpMethod.class == paramType ||
+                Locale.class == paramType ||
+                TimeZone.class == paramType ||
+                ZoneId.class == paramType);
+    }
+```
+
+# 响应处理
+
+方法上注解 @ResponseBody 可以自动处理返回json数据
+
+![15个返回值解析器（处理器）](/img/SpringBoot/HandlerMethodReturnValueHandler.png)
+
+源码过程：
+
+- ServletInvocableHandlerMethod 下的 invokeAndHandle 方法：
+
+```java
+    /**
+     * Invoke the method and handle the return value through one of the
+     * configured {@link HandlerMethodReturnValueHandler HandlerMethodReturnValueHandlers}.
+     * @param webRequest the current request
+     * @param mavContainer the ModelAndViewContainer for this request
+     * @param providedArgs "given" arguments matched by type (not resolved)
+     */
+    public void invokeAndHandle(ServletWebRequest webRequest, ModelAndViewContainer mavContainer,
+            Object... providedArgs) throws Exception {
+
+        Object returnValue = invokeForRequest(webRequest, mavContainer, providedArgs);
+        setResponseStatus(webRequest);
+
+        if (returnValue == null) {
+            if (isRequestNotModified(webRequest) || getResponseStatus() != null || mavContainer.isRequestHandled()) {
+                disableContentCachingIfNecessary(webRequest);
+                mavContainer.setRequestHandled(true);
+                return;
+            }
+        }
+        else if (StringUtils.hasText(getResponseStatusReason())) {
+            mavContainer.setRequestHandled(true);
+            return;
+        }
+
+        mavContainer.setRequestHandled(false);
+        Assert.state(this.returnValueHandlers != null, "No return value handlers");
+        try {
+            // 处理返回值
+            this.returnValueHandlers.handleReturnValue(
+                    returnValue, getReturnValueType(returnValue), mavContainer, webRequest);
+        }
+        catch (Exception ex) {
+            if (logger.isTraceEnabled()) {
+                logger.trace(formatErrorForReturnValue(returnValue), ex);
+            }
+            throw ex;
+        }
+    }
+```
+
+- 进入 HandlerMethodReturnValueHandlerComposite 的 handleReturnValue 处理返回值
+
+```java
+    /**
+     * Iterate over registered {@link HandlerMethodReturnValueHandler HandlerMethodReturnValueHandlers} and invoke the one that supports it.
+     * @throws IllegalStateException if no suitable {@link HandlerMethodReturnValueHandler} is found.
+     */
+    @Override
+    public void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+            ModelAndViewContainer mavContainer, NativeWebRequest webRequest) throws Exception {
+        // 拿到返回值对象和返回值类型，找哪个handler可以处理它
+        HandlerMethodReturnValueHandler handler = selectHandler(returnValue, returnType);
+        if (handler == null) {
+            throw new IllegalArgumentException("Unknown return value type: " + returnType.getParameterType().getName());
+        }
+        // 进行处理
+        handler.handleReturnValue(returnValue, returnType, mavContainer, webRequest);
+    }
+```
+
+- 查找可以处理返回值的handler的方法：
+
+```java
+    @Nullable
+    private HandlerMethodReturnValueHandler selectHandler(@Nullable Object value, MethodParameter returnType) {
+        boolean isAsyncValue = isAsyncReturnValue(value, returnType);
+        for (HandlerMethodReturnValueHandler handler : this.returnValueHandlers) {
+            if (isAsyncValue && !(handler instanceof AsyncHandlerMethodReturnValueHandler)) {
+                continue;
+            }
+            if (handler.supportsReturnType(returnType)) {
+                return handler;
+            }
+        }
+        return null;
+    }
+```
+
+- 返回值处理器的解析步骤：
+
+1. 返回值处理器先判断是否支持这种类型 supportsReturnType
+2. 如果支持，调用handleReturnValue进行处理
+3. RequestResponseBodyMethodProcessor 可以利用 MessageConverters 进行处理返回值标了 @ResponseBody 注解的方法，将数据写为 json。
+    1. 内容协商（浏览器默认会以请求头的方式告诉服务器他能接受什么样的内容类型）
+    2. 服务器最终根据自己自身的能力，决定服务器能生产出什么样内容类型的数据，
+    3. SpringMVC会挨个遍历所有容器底层的 HttpMessageConverter ，看谁能处理？
+        1. 得到MappingJackson2HttpMessageConverter可以将对象写为json
+        2. 利用MappingJackson2HttpMessageConverter将对象转为json再写出去。
+
+## 内容协商
+
+根据客户端接受能力不同，返回不同媒体类型的数据
+
+需要引入依赖
+
+```xml
+<dependency>
+    <groupId>com.fasterxml.jackson.dataformat</groupId>
+    <artifactId>jackson-dataformat-xml</artifactId>
+</dependency>
+```
+
+开启基于请求参数的内容协商功能 
+
+```yaml
+spring:
+  mvc:
+    contentnegotiation:
+      favor-parameter: true
+```
+
+(请求参数携带format=xml即可指定返回xml数据)
+
+**原理**
+
+1. 检查当前的响应头中是否已经有了确定的媒体类型
+2. 根据Accept请求头字段，获取客户端支持的内容类型
+3. 遍历MessageConvertre，查找谁可以支持当前对象
+4. 找到支持当前对象的converter，得到converter支持度媒体类型
+5. 找到最佳匹配的媒体类型，用它进行转化
