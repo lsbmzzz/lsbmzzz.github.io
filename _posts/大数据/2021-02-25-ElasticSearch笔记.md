@@ -148,4 +148,86 @@ ElasticSearch索引和搜索数据的最小单位是文档，文档有以下特�
 - 解压到ElasticSearch 的 plugins下
 - 重启ElasticSearch
 
+分词方法：
+- ik_smart 最少切分
+- ik_max_word 最细粒度划分
 
+```json
+GET _analyze
+{
+  "analyzer": "ik_max_word",
+  "text": "法外狂徒张三"
+}
+
+{
+  "tokens" : [
+    {
+      "token" : "法外",
+      "start_offset" : 0,
+      "end_offset" : 2,
+      "type" : "CN_WORD",
+      "position" : 0
+    },
+    {
+      "token" : "狂徒",
+      "start_offset" : 2,
+      "end_offset" : 4,
+      "type" : "CN_WORD",
+      "position" : 1
+    },
+    {
+      "token" : "张三",
+      "start_offset" : 4,
+      "end_offset" : 6,
+      "type" : "CN_WORD",
+      "position" : 2
+    },
+    {
+      "token" : "三",
+      "start_offset" : 5,
+      "end_offset" : 6,
+      "type" : "TYPE_CNUM",
+      "position" : 3
+    }
+  ]
+}
+```
+```json
+GET _analyze
+{
+  "analyzer": "ik_smart",
+  "text": "法外狂徒张三"
+}
+
+{
+  "tokens" : [
+    {
+      "token" : "法外",
+      "start_offset" : 0,
+      "end_offset" : 2,
+      "type" : "CN_WORD",
+      "position" : 0
+    },
+    {
+      "token" : "狂徒",
+      "start_offset" : 2,
+      "end_offset" : 4,
+      "type" : "CN_WORD",
+      "position" : 1
+    },
+    {
+      "token" : "张三",
+      "start_offset" : 4,
+      "end_offset" : 6,
+      "type" : "CN_WORD",
+      "position" : 2
+    }
+  ]
+}
+```
+
+**给ik分词器增加自己的配置**
+
+在 config 下 IKAnalyzer.cfg.xml 文件中配置字典文件
+
+字典文件参考dic文件编写
