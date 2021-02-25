@@ -12,6 +12,8 @@ tags:
 
 ---
 
+[雷丰阳2021版SpringBoot2零基础入门springboot全套完整版（spring boot2）](https://www.bilibili.com/video/BV19K4y1L7MT)
+
 # @Configuration
 
 作用：告诉springboot这是一个配置类，配置类中可使用@Bean标注在方法上给容器注册组件
