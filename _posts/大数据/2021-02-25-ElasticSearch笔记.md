@@ -253,6 +253,7 @@ GET _analyze
 >> PUT GET POST DELETE
 
 - 创建索引（添加数据）
+
 ```json
 PUT /index1/type1/document1
 {
