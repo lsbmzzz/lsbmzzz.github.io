@@ -12,7 +12,7 @@ tags:
 
 ---
 
-[【狂神说Java】ElasticSearch7.6.x最新完整教程通俗易懂](https://www.bilibili.com/video/BV17a4y1x7zq?p=4)
+> [【狂神说Java】ElasticSearch7.6.x最新完整教程通俗易懂](https://www.bilibili.com/video/BV17a4y1x7zq?p=4)
 
 # 简介
 
@@ -231,3 +231,383 @@ GET _analyze
 在 config 下 IKAnalyzer.cfg.xml 文件中配置字典文件
 
 字典文件参考dic文件编写
+
+
+# Rest风格
+
+提供了一组设计原则和约束条件，主要用于客户端与服务器交互类的软件，让设计的软件更简洁，更有层次。
+
+- Rest命令：
+
+| method | url | description |
+| --- | --- | --- |
+| PUT | localhost:9200/索引名称/类型名称/文档id | 创建文档（指定文档id） |
+| POST | localhost:9200/索引名称/类型名称 | 创建文档(随机文档id) |
+| POST | localhost:9200/索引名称/类型名称/文档id/_update | 修改文档 |
+| DELETE | localhost:9200/索引名称/类型名称/文档id | 删除文档 |
+| GET | localhost:9200/索引名称/类型名称/文档id | 通过id查询文档 |
+| POST | localhost:9200/索引名称/类型名称/_search | 查询所有数据 |
+
+# 关于索引的基本操作
+
+>> PUT GET POST DELETE
+
+- 创建索引（添加数据）
+```json
+PUT /index1/type1/document1
+{
+  "name": "zhangsan",
+  "age": 18
+}
+
+// 返回
+#! Deprecation: [types removal] Specifying types in document index requests is deprecated, use the typeless endpoints instead (/{index}/_doc/{id}, /{index}/_doc, or /{index}/_create/{id}).
+{
+  "_index" : "index1",
+  "_type" : "type1",
+  "_id" : "document1",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 0,
+  "_primary_term" : 1
+}
+```
+
+- 创建索引的规则：
+
+```json
+PUT /index2
+
+{
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text"
+      },
+      "age": {
+        "type": "int"
+      },
+      "birthday": {
+        "type": "date"
+      }
+    }
+  }
+}
+
+// 返回
+{
+  "acknowledged" : true,
+  "shards_acknowledged" : true,
+  "index" : "index2"
+}
+
+```
+
+- 获得索引规则
+
+```json
+GET /index2
+
+// 返回
+{
+  "index2" : {
+    "aliases" : { },
+    "mappings" : { },
+    "settings" : {
+      "index" : {
+        "routing" : {
+          "allocation" : {
+            "include" : {
+              "_tier_preference" : "data_content"
+            }
+          }
+        },
+        "number_of_shards" : "1",
+        "provided_name" : "index2",
+        "creation_date" : "1614303072049",
+        "number_of_replicas" : "1",
+        "uuid" : "vOm8CjtCSeaIpLHX3rLjAg",
+        "version" : {
+          "created" : "7110199"
+        }
+      }
+    }
+  }
+}
+```
+
+- 如果没有指定文档的字段类型，ES会默认配置字段类型
+- GET _cat 命令：获取一些基本信息
+
+```json
+GET _cat/health
+
+// 返回
+1614303665 01:41:05 my-application yellow 1 1 13 13 0 0 7 0 - 65.0%
+```
+
+- 修改：可以直接使用PUT命令进行覆盖
+
+```json
+PUT /index1/type1/document1
+{
+  "name": "zhangsan",
+  "age": 5
+}
+
+// 返回
+#! Deprecation: [types removal] Specifying types in document index requests is deprecated, use the typeless endpoints instead (/{index}/_doc/{id}, /{index}/_doc, or /{index}/_create/{id}).
+{
+  "_index" : "index1",
+  "_type" : "type1",
+  "_id" : "document1",
+  "_version" : 2,   // 版本号增加
+  "result" : "updated", // 类型变成update
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 1,
+  "_primary_term" : 1
+}
+```
+
+- 修改： 通过POST命令，如果没设置某些值，原来的值不会丢失
+
+```json
+POST /index1/type1/document1/_update
+{
+  "doc": { // 固定写法
+    "age": 44
+  }
+}
+
+// 返回
+#! Deprecation: [types removal] Specifying types in document index requests is deprecated, use the typeless endpoints instead (/{index}/_doc/{id}, /{index}/_doc, or /{index}/_create/{id}).
+{
+  "_index" : "index1",
+  "_type" : "type1",
+  "_id" : "document1",
+  "_version" : 3,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 2,
+  "_primary_term" : 1
+}
+```
+
+- 删除： DELETE
+
+```json
+DELETE /index1
+
+// 返回
+{
+  "acknowledged" : true
+}
+```
+
+# 关于文档的基本操作
+
+- 条件搜索_search
+```json
+GET /index1/type1/document1/_search?q=name:zhangsan
+```
+
+## 复杂查询
+
+> select 排序、分页、高亮、模糊查询、精准查询
+
+结构：命令+json文档
+
+```json
+GET /index1/type1/document1/_search
+{
+    "query": {
+        "match": {
+            "name": "zhangsan"
+        }
+    }
+}
+```
+
+- 过滤结果，展示列表中的某些字段： 
+
+```json
+{
+    "query": {
+        ...
+    }
+    "_source": ["name", "age"]
+
+}
+```
+
+- 结果排序
+
+```json
+{
+    "query": {
+        ...
+    }
+    "sort": {
+    "age": {
+        "order": "asc"
+    }
+}
+}
+
+```
+
+- 分页查询
+
+```json
+{
+    "query": {
+        ...
+    }
+    "from": 0,
+    "size": 10
+}
+```
+
+### 多条件查询
+
+- 布尔值查询
+
+```json
+{
+    "query": {
+        "bool": {
+            // and or not 
+            "must": // and
+            // "must_not": // not
+            // "should": // or
+            [
+                {
+                    "match": {
+                        ...
+                    }
+                },
+                {
+                    "match": {
+                        ...
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+
+- 二元逻辑
+    + must 与 对应and 
+    + must_not 非 对应not
+    + should 或 对应or
+
+- 过滤器 filter
+
+```json
+{
+    "query": {
+        "bool": {
+            "must": 
+            [
+                {
+                    "match": {
+                        ...
+                    }
+                }
+            ],
+            "filter": {
+                "age": {
+                    "gt": 10
+                }
+            }
+        }
+    }
+}
+```
+
+- 条件区间
+    + gt: great than 
+    + gte: great than equal
+    + lt: little than
+    + lte: little than equal
+
+- 匹配多条件: 空格隔开
+    + 查询结果中会给出score表示匹配度
+
+```json
+{
+    "query": {
+        "match": {
+            "tags": "男 技术 暖"
+        }
+    }
+}
+```
+
+- 精确查询
+
+term查询直接通过倒排索引指定的词条进行精确查询
+
+- 关于分词：
+    + term是直接精确查询
+    + match会使用分词器进行解析
+
+- 两个类型：text和keyword
+    + text类型可以被分词解析
+    + keyword类型不能被分词解析
+
+```json
+GET _analyze
+{
+    "analyzer": "keyword", // 不会被分词
+    "text": "你的答案"
+}
+```
+
+- 精确查询多个值： 可使用should
+
+### 高亮
+
+```json
+{
+    "quern": {
+        ...
+    }
+    "highlight": {
+        "fields": { // 设置高亮字段，会在结果上增加<em>标签
+            "name": {}
+        }
+    }
+}
+```
+
+- 可以自定义高亮样式
+
+```json
+{
+    "quern": {
+        ...
+    }
+    "highlight": {
+        "pre_tags": "<p class='key' style='color:red'>",
+        "post_tags": "</p>",
+        "fields": { // 设置高亮字段，会在结果上增加<em>标签
+            "name": {}
+        }
+    }
+}
+```

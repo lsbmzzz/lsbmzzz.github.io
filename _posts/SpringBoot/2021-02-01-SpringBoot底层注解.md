@@ -12,7 +12,7 @@ tags:
 
 ---
 
-[雷丰阳2021版SpringBoot2零基础入门springboot全套完整版（spring boot2）](https://www.bilibili.com/video/BV19K4y1L7MT)
+> [雷丰阳2021版SpringBoot2零基础入门springboot全套完整版（spring boot2）](https://www.bilibili.com/video/BV19K4y1L7MT)
 
 # @Configuration
 
