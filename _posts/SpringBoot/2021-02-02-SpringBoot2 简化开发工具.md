@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      SpringBoot简化开发工具Lombok
-subtitle:   SpringBoot简化开发工具Lombok
+title:      SpringBoot2 简化开发工具Lombok
+subtitle:   SpringBoot2 简化开发工具Lombok
 date:       2021-02-02
 author:     张三
 header-img: img/spring.jpg

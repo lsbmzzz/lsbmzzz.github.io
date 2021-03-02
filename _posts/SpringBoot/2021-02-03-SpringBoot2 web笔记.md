@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      SpringBoot web笔记
-subtitle:   SpringBoot web笔记
+title:      SpringBoot2 web笔记
+subtitle:   SpringBoot2 web笔记
 date:       2021-02-03
 author:     张三
 header-img: img/spring.jpg
@@ -854,3 +854,95 @@ spring:
 3. 遍历MessageConvertre，查找谁可以支持当前对象
 4. 找到支持当前对象的converter，得到converter支持度媒体类型
 5. 找到最佳匹配的媒体类型，用它进行转化
+
+# 拦截器
+
+HandlerInterceptor接口中定义了三个方法：
+
+- preHandler 在目标方法之前进行调用
+- postHandler 在目标方法处理后，到达页面之前调用
+- afterHandler 整个请求处理完成后调用
+
+**使用**
+
+1. 拦截器实现HandlerInterceptor接口
+2. 通过实现WebMvcConfiguer中的addInterceptions 将拦截器注册到容器中
+3. 指定拦截规则（注意放行静态资源）
+
+执行原理：
+
+1. 根据当前请求，找到HandlerExecutionChain【可以处理请求的handler以及handler的所有 拦截器】
+2. 先执行 所有拦截器的 preHandle方法
+    - 如果当前拦截器prehandler返回为true。则执行下一个拦截器的preHandle
+    - 如果当前拦截器返回为false。直接倒序执行所有已经执行了的拦截器的  afterCompletion
+3. 如果任何一个拦截器返回false。直接跳出不执行目标方法
+4. 所有拦截器都返回True。执行目标方法
+5. 倒序执行所有拦截器的postHandle方法。
+6. 前面的步骤有任何异常都会直接倒序触发 afterCompletion
+7. 页面成功渲染完成以后，也会倒序触发 afterCompletion
+
+# 错误处理
+
+SpringBoot默认提供 /error 来处理所有错误映射
+/error/下的4xx，5xx页面会被自动解析
+先匹配具体错误码，匹配不到会跳转 4xx，5xx 页面
+
+### 走动配置原理
+
+自动配置类 ErrorMvcAutoConfiguration 
+
+- 组件 DefaultErrorAttributes errorAttributes
+    + public class DefaultErrorAttributes implements ErrorAttributes, HandlerExceptionResolver, Ordered 定义错误页面中包含哪些数据（exception, trace, message, errors 等）
+- 组件 BasicErrorController basicErrorController （响应json或白页）
+    + public class BasicErrorController extends AbstractErrorController
+        * public ModelAndView errorHtml(HttpServletRequest request, HttpServletResponse response) 处理默认的error请求
+    + public View defaultErrorView() 响应默认的错误页面
+    + public BeanNameViewResolver beanNameViewResolver() 按照返回的视图名称作为组件，去容器中匹配View对象
+- DefaultErrorViewResolver conventionErrorViewResolver 映射错误类型，根据http状态码作为视图地址匹配对应页面
+
+private static class StaticView implements View 定义了默认白页
+
+### 错误处理流程
+
+1. 目标方法发生异常时，被catch，当前请求结束并使用dispatchException处理
+2. 进入视图解析流程（页面渲染） private void processDispatchResult(HttpServletRequest request, HttpServletResponse response, @Nullable HandlerExecutionChain mappedHandler, @Nullable ModelAndView mv, @Nullable Exception exception) throws Exception
+3. mv = processHandlerException 处理异常，返回ModelAndView
+
+# 注入原生组件
+
+1. 使用servlet api注入（推荐）
+
+    - 在启动类上 @ServletComponentScan(basePackages = "包名") 指定servlet组件位置
+    - 在类上标注：
+        + @WebServlet(urlPatterns = "/my") 会直接响应，不经过拦截器
+        + @WebFilter(urlPatterns={"/css/*","/images/*"})
+        + @WebListener
+
+2. 使用RegistrationBean注入
+
+```java
+@Configuration
+public class MyResigentrationConfig {
+    @Bean
+    public ServletRegistrationBean myServlet() {
+        MyServlet myServlet = new MyServlet();
+        return new ServletRegistrationBean(myServlet, "/my");
+    }
+
+    @Bean
+    public FilterRegistrationBean myFilter() {
+        MyFilter myFilter = new MyFilter();
+        FilterRegistrationBean filterRegistrationBean = new FilterRegistrationBean(myFilter);
+        filterRegistrationBean.setUrlPatterns(Arrays.asList("/my1", "/my2", "/my3"));
+        return filterRegistrationBean;
+    }
+
+    @Bean
+    public ServletListenerRegistrationBean myListener() {
+        MyServletContextListener myListener = new MyServletContextListener();
+        ServletListenerRegistrationBean listenerRegistrationBean = new ServletListenerRegistrationBean(myListener);
+        return listenerRegistrationBean;
+    }
+}
+```
+

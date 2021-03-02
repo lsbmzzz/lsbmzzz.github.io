@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      SpringBoot底层注解
-subtitle:   SpringBoot底层注解
+title:      SpringBoot2 底层注解
+subtitle:   SpringBoot2 底层注解
 date:       2021-02-01
 author:     张三
 header-img: img/spring.jpg
