@@ -244,7 +244,7 @@ public class HelloController {
 
 ## 请求映射的原理
 
-![](/img/SpringBoot/Spring请求调用原理.png)
+![](/img/后端开发/SpringBoot/Spring请求调用原理.png)
 
 - HttpServlet 中的 doGet 在 FrameWorkServlet 中 调用本类的 processRequest 方法
 - processRequest 调用本类的 doService 方法
@@ -431,7 +431,7 @@ handlerMapping 中有
 - 在 HandlerMapping 中找到能处理请求的Handler，并为其找到一个适配器 HandlerAdapter
 - RequestMappingHandlerAdapter中的handleInternal调用invokeHandlerMethod执行目标方法并确定方法参数的值
 
-![HandlerAdapter.png](/img/SpringBoot/HandlerAdapter.png)
+![HandlerAdapter.png](/img/后端开发/SpringBoot/HandlerAdapter.png)
 
 - 4种 Adapter 前两种用的最多
     + 支持方法上标注@RequestMapping注解
@@ -693,12 +693,12 @@ handlerMapping 中有
 确定将要执行的目标方法的每一个参数的值是什么;
 SpringMVC目标方法能写多少种参数类型。取决于参数解析器。
 
-![26个参数解析器](/img/SpringBoot/HandlerMethodArgumentResolver.png)
+![26个参数解析器](/img/后端开发/SpringBoot/HandlerMethodArgumentResolver.png)
 
 ##### 返回值处理器
 可以处理哪些类型的返回值
 
-![15个返回值处理器](/img/SpringBoot/HandlerMethodReturnValueHandler.png)
+![15个返回值处理器](/img/后端开发/SpringBoot/HandlerMethodReturnValueHandler.png)
 
 ### Servlet API
 

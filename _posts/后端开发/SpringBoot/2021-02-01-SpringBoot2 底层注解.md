@@ -64,7 +64,7 @@ public class Cell{
 
 满足Conditional指定的条件时，才进行组件注入
 
-![Conditional注解](/img/SpringBoot/Conditional注解.png)
+![Conditional注解](/img/后端开发/SpringBoot/Conditional注解.png)
 
 
 # @ImportResource
